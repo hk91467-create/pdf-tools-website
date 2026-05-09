@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to JPG - Convert PDF Pages to Images Free | PDF Tools Pro</title>
+    <meta name="description" content="Convert PDF pages to JPG images online for free. Extract images from your PDF documents.">
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; color: white; padding: 30px 20px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .main-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .drop-zone { border: 3px dashed #667eea; border-radius: 15px; padding: 50px 20px; text-align: center; cursor: pointer; background: #f8f9ff; margin-bottom: 20px; transition: all 0.3s; }
+        .drop-zone:hover { background: #eef0ff; }
+        .drop-zone.dragover { background: #dde0ff; border-color: #764ba2; }
+        button { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: 600; cursor: pointer; margin: 10px 0; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102,126,234,0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .preview-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .preview-item { border: 2px solid #ddd; border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .preview-item:hover { border-color: #667eea; transform: scale(1.02); }
+        .preview-item img { width: 100%; height: auto; border-radius: 5px; }
+        .preview-item.selected { border-color: #667eea; background: #f0f0ff; }
+        .status { text-align: center; padding: 15px; margin: 15px 0; border-radius: 10px; display: none; }
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.processing { background: #fff3cd; color: #856404; display: block; }
+        .back-link { display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+        input[type="file"] { display: none; }
+        .page-controls { display: flex; gap: 10px; align-items: center; justify-content: center; margin: 20px 0; }
+        .page-controls select { padding: 10px; border: 2px solid #667eea; border-radius: 10px; font-size: 1em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖼️ PDF to JPG</h1>
+            <p>Convert PDF pages to images - Free & Fast</p>
+        </div>
+        
+        <div class="main-card">
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size: 4em;">📄➡️🖼️</div>
+                <h2>Drop PDF file here</h2>
+                <p>or click to select</p>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+            
+            <div id="options" style="display: none;">
+                <div class="page-controls">
+                    <label style="font-weight: bold;">Convert:</label>
+                    <select id="pageSelector">
+                        <option value="all">All Pages</option>
+                        <option value="first">First Page Only</option>
+                    </select>
+                </div>
+                
+                <button id="convertBtn">
+                    🖼️ Convert to JPG
+                </button>
+            </div>
+            
+            <div class="preview-container" id="preview"></div>
+            <div class="status" id="status"></div>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/" class="back-link">← Back to All Tools</a>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let pdfDoc = null;
+        
+        // Set PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        const preview = document.getElementById('preview');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+        
+        async function handleFile(file) {
+            if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+                showStatus('❌ Please select a valid PDF file.', 'error');
+                return;
+            }
+            
+            selectedFile = file;
+            document.getElementById('options').style.display = 'block';
+            
+            // Load PDF for preview
+            const arrayBuffer = await file.arrayBuffer();
+            pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            // Show thumbnails
+            preview.innerHTML = '<p style="text-align: center; color: #666;">Loading preview...</p>';
+            renderPreviews();
+        }
+        
+        async function renderPreviews() {
+            preview.innerHTML = '';
+            const numPages = Math.min(pdfDoc.numPages, 10); // Show max 10 previews
+            
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const viewport = page.getViewport({ scale: 0.5 });
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `
+                    <img src="${canvas.toDataURL()}" alt="Page ${i}">
+                    <p style="margin-top: 5px; font-weight: bold;">Page ${i}</p>
+                `;
+                preview.appendChild(div);
+            }
+            
+            if (pdfDoc.numPages > 10) {
+                preview.innerHTML += `<p style="text-align: center; color: #666;">Showing first 10 of ${pdfDoc.numPages} pages</p>`;
+            }
+        }
+        
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile || !pdfDoc) return;
+            
+            convertBtn.disabled = true;
+            showStatus('⏳ Converting PDF to JPG...', 'processing');
+            
+            try {
+                const option = document.getElementById('pageSelector').value;
+                const pagesToConvert = option === 'first' ? [1] : Array.from({ length: pdfDoc.numPages }, (_, i) => i + 1);
+                
+                for (const pageNum of pagesToConvert) {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 2 }); // High quality
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    
+                    // Download as JPG
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `page-${pageNum}.jpg`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    // Small delay between downloads
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                showStatus(`✅ Converted ${pagesToConvert.length} page(s) to JPG!`, 'success');
+            } catch (error) {
+                showStatus('❌ Error converting PDF: ' + error.message, 'error');
+            } finally {
+                convertBtn.disabled = false;
+            }
+        });
+        
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => { status.style.display = 'none'; }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
