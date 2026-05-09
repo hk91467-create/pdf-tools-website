@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Word - Convert PDF to DOCX Free | PDF Tools Pro</title>
+    <meta name="description" content="Convert PDF to Word documents online for free. Extract text from PDFs and create editable DOCX files. No sign up needed!">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2b6cb0 0%, #2d3748 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; color: white; padding: 30px 20px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .main-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .drop-zone { border: 3px dashed #2b6cb0; border-radius: 15px; padding: 50px 20px; text-align: center; cursor: pointer; background: #ebf4ff; margin-bottom: 20px; transition: all 0.3s; }
+        .drop-zone:hover { background: #d6e8ff; }
+        .drop-zone.dragover { background: #c3dafe; border-color: #2d3748; }
+        .file-info { background: #f7fafc; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; display: none; }
+        .text-preview { background: #f7fafc; padding: 20px; border-radius: 12px; margin: 20px 0; max-height: 300px; overflow-y: auto; display: none; }
+        .text-preview pre { white-space: pre-wrap; font-family: monospace; font-size: 0.9em; color: #333; }
+        button { width: 100%; padding: 15px; background: linear-gradient(135deg, #2b6cb0 0%, #2d3748 100%); color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: 600; cursor: pointer; margin: 10px 0; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(43,108,176,0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .quality-selector { display: flex; gap: 10px; margin: 20px 0; align-items: center; }
+        .quality-selector select { padding: 10px; border: 2px solid #2b6cb0; border-radius: 10px; font-size: 1em; flex: 1; }
+        .status { text-align: center; padding: 15px; margin: 15px 0; border-radius: 10px; display: none; }
+        .status.success { background: #c6f6d5; color: #22543d; display: block; }
+        .status.error { background: #fed7d7; color: #742a2a; display: block; }
+        .status.processing { background: #fefcbf; color: #744210; display: block; }
+        .info-box { background: #ebf8ff; border-left: 4px solid #2b6cb0; padding: 15px; margin: 20px 0; border-radius: 8px; }
+        .info-box p { color: #2c5282; font-size: 0.9em; line-height: 1.6; }
+        .back-link { display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+        input[type="file"] { display: none; }
+        .page-count { display: inline-block; padding: 5px 15px; background: #2b6cb0; color: white; border-radius: 20px; font-size: 0.9em; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 PDF to Word</h1>
+            <p>Convert your PDF documents to editable Word files</p>
+        </div>
+        
+        <div class="main-card">
+            <div class="info-box">
+                <p>💡 <strong>How it works:</strong> We extract all text from your PDF and create a Word-compatible document. For simple text PDFs, this works great! For PDFs with complex tables, images, or special formatting, the text will be extracted but basic formatting will be used.</p>
+            </div>
+            
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size: 4em;">📄➡️📝</div>
+                <h2>Drop your PDF here</h2>
+                <p>or click to browse files</p>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">Supports PDF files up to 50MB</p>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+            
+            <div class="file-info" id="fileInfo"></div>
+            
+            <div class="quality-selector" id="options" style="display: none;">
+                <label style="font-weight: bold;">Output Format:</label>
+                <select id="formatSelector">
+                    <option value="docx-html">Word Document (.doc)</option>
+                    <option value="txt">Plain Text (.txt)</option>
+                </select>
+            </div>
+            
+            <button id="convertBtn" style="display: none;">
+                📝 Convert to Word
+            </button>
+            
+            <div class="text-preview" id="preview">
+                <h4 style="margin-bottom: 10px;">📄 Extracted Text Preview:</h4>
+                <pre id="previewText"></pre>
+            </div>
+            
+            <div class="status" id="status"></div>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/" class="back-link">← Back to All Tools</a>
+        </div>
+    </div>
+
+    <script>
+        // Set PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let selectedFile = null;
+        let extractedText = '';
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const convertBtn = document.getElementById('convertBtn');
+        const options = document.getElementById('options');
+        const status = document.getElementById('status');
+        const preview = document.getElementById('preview');
+        const previewText = document.getElementById('previewText');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+        
+        async function handleFile(file) {
+            if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+                showStatus('❌ Please select a valid PDF file.', 'error');
+                return;
+            }
+            
+            if (file.size > 50 * 1024 * 1024) {
+                showStatus('❌ File is too large. Maximum size is 50MB.', 'error');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `<strong>📄 ${file.name}</strong> - ${formatSize(file.size)}`;
+            
+            showStatus('🔍 Extracting text from PDF...', 'processing');
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                fileInfo.innerHTML += `<br><span class="page-count">📑 ${pdf.numPages} pages</span>`;
+                
+                extractedText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    extractedText += `--- Page ${i} ---\n\n${pageText}\n\n`;
+                    
+                    // Update progress
+                    const progress = Math.round((i / pdf.numPages) * 100);
+                    showStatus(`🔍 Extracting text... ${progress}%`, 'processing');
+                }
+                
+                // Show preview
+                preview.style.display = 'block';
+                previewText.textContent = extractedText.substring(0, 2000) + (extractedText.length > 2000 ? '\n\n... (showing first 2000 characters)' : '');
+                
+                options.style.display = 'flex';
+                convertBtn.style.display = 'block';
+                
+                showStatus(`✅ Text extracted from ${pdf.numPages} pages! Ready to convert.`, 'success');
+            } catch (error) {
+                console.error('Extraction error:', error);
+                showStatus('❌ Error reading PDF. The file might be scanned or image-based.', 'error');
+            }
+        }
+        
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        convertBtn.addEventListener('click', () => {
+            if (!extractedText) {
+                showStatus('❌ No text to convert. Please upload a PDF first.', 'error');
+                return;
+            }
+            
+            const format = document.getElementById('formatSelector').value;
+            
+            if (format === 'txt') {
+                downloadTXT();
+            } else {
+                downloadDOCX();
+            }
+        });
+        
+        function downloadTXT() {
+            const blob = new Blob([extractedText], { type: 'text/plain' });
+            downloadFile(blob, 'converted.txt');
+            showStatus('✅ Text file downloaded!', 'success');
+        }
+        
+        function downloadDOCX() {
+            // Create an HTML-based Word document (compatible with Word)
+            const htmlContent = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office"
+                      xmlns:w="urn:schemas-microsoft-com:office:word"
+                      xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8">
+                    <title>${selectedFile ? selectedFile.name.replace('.pdf', '') : 'Converted Document'}</title>
+                    <style>
+                        body { font-family: 'Calibri', Arial, sans-serif; font-size: 12pt; line-height: 1.6; padding: 20px; }
+                        h1, h2, h3 { color: #333; }
+                        p { margin: 10px 0; }
+                        .page-break { page-break-before: always; }
+                    </style>
+                </head>
+                <body>
+                    ${extractedText
+                        .replace(/--- Page (\d+) ---/g, '<div class="page-break"></div><h2>Page $1</h2>')
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\n/g, '<br>')
+                        .replace(/<p><\/p>/g, '')
+                    }
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob([htmlContent], { 
+                type: 'application/msword' 
+            });
+            
+            const fileName = selectedFile 
+                ? selectedFile.name.replace('.pdf', '') + '.doc'
+                : 'converted.doc';
+            
+            downloadFile(blob, fileName);
+            showStatus('✅ Word document downloaded! You can open it in Microsoft Word or Google Docs.', 'success');
+        }
+        
+        function downloadFile(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 6000);
+            }
+        }
+    </script>
+</body>
+</html>
