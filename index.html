@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My PDF Tools</title>
+    <title>PDF Tools - Free Online PDF Editor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,37 +12,49 @@
             min-height: 100vh;
         }
         h1 { font-size: 3em; margin-bottom: 20px; }
-        p { font-size: 1.2em; opacity: 0.9; }
+        p { font-size: 1.2em; opacity: 0.9; margin-bottom: 40px; }
         .tools {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             max-width: 1000px;
-            margin: 50px auto;
+            margin: 0 auto;
         }
         .tool-card {
             background: rgba(255,255,255,0.1);
             padding: 30px;
             border-radius: 15px;
             backdrop-filter: blur(10px);
+            text-decoration: none;
+            color: white;
+            transition: transform 0.3s;
+            display: block;
+        }
+        .tool-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.2);
+        }
+        .tool-card h2 {
+            margin-top: 0;
         }
     </style>
 </head>
 <body>
-    <h1>📄 PDF Tools</h1>
-    <p>Free Online PDF Tools - Coming Soon!</p>
+    <h1>📄 PDF Tools Pro</h1>
+    <p>Free Online PDF Tools - No Sign Up Required!</p>
+    
     <div class="tools">
-        <div class="tool-card">
+        <a href="/merge.html" class="tool-card">
             <h2>🔗 Merge PDF</h2>
-            <p>Combine multiple PDFs</p>
-        </div>
+            <p>Combine multiple PDFs into one</p>
+        </a>
         <div class="tool-card">
             <h2>✂️ Split PDF</h2>
-            <p>Extract pages</p>
+            <p>Extract pages - Coming Soon</p>
         </div>
         <div class="tool-card">
-            <h2>📦 Compress</h2>
-            <p>Reduce file size</p>
+            <h2>📦 Compress PDF</h2>
+            <p>Reduce file size - Coming Soon</p>
         </div>
     </div>
 </body>
