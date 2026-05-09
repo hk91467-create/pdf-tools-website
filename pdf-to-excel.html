@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Excel - Convert PDF to CSV/XLS Free | PDF Tools Pro</title>
+    <meta name="description" content="Convert PDF tables to Excel spreadsheets online for free. Extract data from PDFs into CSV format. No sign up required!">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2d8659 0%, #1a4731 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; color: white; padding: 30px 20px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .main-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .drop-zone { border: 3px dashed #2d8659; border-radius: 15px; padding: 50px 20px; text-align: center; cursor: pointer; background: #f0fff4; margin-bottom: 20px; transition: all 0.3s; }
+        .drop-zone:hover { background: #dcfce7; }
+        .drop-zone.dragover { background: #bbf7d0; border-color: #1a4731; }
+        .file-info { background: #f0fff4; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; display: none; }
+        .data-preview { background: #f7fafc; padding: 20px; border-radius: 12px; margin: 20px 0; overflow-x: auto; display: none; }
+        .data-preview table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
+        .data-preview th { background: #2d8659; color: white; padding: 8px; text-align: left; border: 1px solid #ddd; }
+        .data-preview td { padding: 8px; border: 1px solid #ddd; }
+        button { width: 100%; padding: 15px; background: linear-gradient(135deg, #2d8659 0%, #1a4731 100%); color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: 600; cursor: pointer; margin: 10px 0; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(45,134,89,0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .format-selector { display: flex; gap: 10px; margin: 20px 0; align-items: center; }
+        .format-selector select { padding: 10px; border: 2px solid #2d8659; border-radius: 10px; font-size: 1em; flex: 1; }
+        .status { text-align: center; padding: 15px; margin: 15px 0; border-radius: 10px; display: none; }
+        .status.success { background: #c6f6d5; color: #22543d; display: block; }
+        .status.error { background: #fed7d7; color: #742a2a; display: block; }
+        .status.processing { background: #fefcbf; color: #744210; display: block; }
+        .info-box { background: #f0fff4; border-left: 4px solid #2d8659; padding: 15px; margin: 20px 0; border-radius: 8px; }
+        .info-box p { color: #22543d; font-size: 0.9em; line-height: 1.6; }
+        .back-link { display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+        input[type="file"] { display: none; }
+        .stats { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+        .stat-item { flex: 1; min-width: 100px; padding: 15px; background: #f0fff4; border-radius: 10px; text-align: center; }
+        .stat-number { font-size: 2em; font-weight: bold; color: #2d8659; }
+        .stat-label { color: #666; font-size: 0.9em; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 PDF to Excel</h1>
+            <p>Extract data & tables from PDF files into spreadsheets</p>
+        </div>
+        
+        <div class="main-card">
+            <div class="info-box">
+                <p>💡 <strong>How it works:</strong> We extract text and attempt to detect table structures from your PDF. Works best with text-based PDFs containing tables or structured data. For scanned/image-based PDFs, text extraction may be limited.</p>
+            </div>
+            
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size: 4em;">📄➡️📊</div>
+                <h2>Drop your PDF here</h2>
+                <p>or click to browse files</p>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">Best with PDFs containing tables and data</p>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+            
+            <div class="file-info" id="fileInfo"></div>
+            
+            <div class="stats" id="stats" style="display: none;"></div>
+            
+            <div class="format-selector" id="options" style="display: none;">
+                <label style="font-weight: bold;">Output Format:</label>
+                <select id="formatSelector">
+                    <option value="csv">CSV (Opens in Excel)</option>
+                    <option value="xls-html">Excel (.xls)</option>
+                    <option value="tsv">TSV (Tab Separated)</option>
+                </select>
+            </div>
+            
+            <button id="convertBtn" style="display: none;">
+                📊 Convert to Spreadsheet
+            </button>
+            
+            <div class="data-preview" id="preview">
+                <h4 style="margin-bottom: 10px;">📊 Extracted Data Preview (first 10 rows):</h4>
+                <div id="tableContainer"></div>
+            </div>
+            
+            <div class="status" id="status"></div>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/" class="back-link">← Back to All Tools</a>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let selectedFile = null;
+        let extractedData = [];
+        let allTextLines = [];
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const convertBtn = document.getElementById('convertBtn');
+        const options = document.getElementById('options');
+        const status = document.getElementById('status');
+        const preview = document.getElementById('preview');
+        const tableContainer = document.getElementById('tableContainer');
+        const stats = document.getElementById('stats');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+        
+        async function handleFile(file) {
+            if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+                showStatus('❌ Please select a valid PDF file.', 'error');
+                return;
+            }
+            
+            if (file.size > 50 * 1024 * 1024) {
+                showStatus('❌ File is too large. Maximum size is 50MB.', 'error');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `<strong>📄 ${file.name}</strong> - ${formatSize(file.size)}`;
+            
+            showStatus('🔍 Analyzing PDF structure...', 'processing');
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                fileInfo.innerHTML += `<br>📑 ${pdf.numPages} pages found`;
+                
+                allTextLines = [];
+                let totalTablesFound = 0;
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    
+                    // Group text items by their Y position (same row)
+                    const rows = {};
+                    textContent.items.forEach(item => {
+                        const y = Math.round(item.transform[5]); // Y position
+                        if (!rows[y]) rows[y] = [];
+                        rows[y].push({
+                            text: item.str,
+                            x: item.transform[4], // X position
+                            width: item.width,
+                            height: item.height
+                        });
+                    });
+                    
+                    // Sort rows by Y position (top to bottom)
+                    const sortedRows = Object.entries(rows)
+                        .sort((a, b) => b[0] - a[0])
+                        .map(entry => entry[1]);
+                    
+                    // Sort items in each row by X position (left to right)
+                    sortedRows.forEach(row => {
+                        row.sort((a, b) => a.x - b.x);
+                        const lineText = row.map(item => item.text).join('\t');
+                        allTextLines.push(lineText);
+                        
+                        // Attempt to detect table rows
+                        if (row.length >= 2) {
+                            totalTablesFound++;
+                        }
+                    });
+                    
+                    const progress = Math.round((i / pdf.numPages) * 100);
+                    showStatus(`🔍 Processing page ${i} of ${pdf.numPages}... ${progress}%`, 'processing');
+                }
+                
+                // Parse into structured data
+                extractedData = allTextLines.map(line => line.split('\t'));
+                
+                // Show stats
+                stats.style.display = 'flex';
+                stats.innerHTML = `
+                    <div class="stat-item">
+                        <div class="stat-number">${pdf.numPages}</div>
+                        <div class="stat-label">Pages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${allTextLines.length}</div>
+                        <div class="stat-label">Data Rows</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${getMaxColumns()}</div>
+                        <div class="stat-label">Max Columns</div>
+                    </div>
+                `;
+                
+                // Show preview table
+                renderPreviewTable();
+                
+                options.style.display = 'flex';
+                convertBtn.style.display = 'block';
+                
+                showStatus(`✅ Data extracted! Found ${allTextLines.length} rows of data.`, 'success');
+            } catch (error) {
+                console.error('Extraction error:', error);
+                showStatus('❌ Error reading PDF. The file might be scanned or image-based.', 'error');
+            }
+        }
+        
+        function getMaxColumns() {
+            return Math.max(...extractedData.map(row => row.length), 0);
+        }
+        
+        function renderPreviewTable() {
+            const maxCols = getMaxColumns();
+            const previewRows = extractedData.slice(0, 10);
+            
+            if (previewRows.length === 0) {
+                tableContainer.innerHTML = '<p>No data detected in the PDF.</p>';
+                return;
+            }
+            
+            let html = '<table>';
+            
+            // Header row
+            html += '<thead><tr>';
+            for (let i = 0; i < maxCols; i++) {
+                html += `<th>Column ${i + 1}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+            
+            // Data rows
+            previewRows.forEach(row => {
+                html += '<tr>';
+                for (let i = 0; i < maxCols; i++) {
+                    html += `<td>${row[i] || ''}</td>`;
+                }
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            
+            if (extractedData.length > 10) {
+                html += `<p style="margin-top: 10px; color: #666;">Showing first 10 of ${extractedData.length} rows</p>`;
+            }
+            
+            tableContainer.innerHTML = html;
+            preview.style.display = 'block';
+        }
+        
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        convertBtn.addEventListener('click', () => {
+            if (!extractedData || extractedData.length === 0) {
+                showStatus('❌ No data to convert. Please upload a PDF first.', 'error');
+                return;
+            }
+            
+            const format = document.getElementById('formatSelector').value;
+            
+            switch(format) {
+                case 'csv':
+                    downloadCSV();
+                    break;
+                case 'xls-html':
+                    downloadXLS();
+                    break;
+                case 'tsv':
+                    downloadTSV();
+                    break;
+            }
+        });
+        
+        function downloadCSV() {
+            let csv = '';
+            extractedData.forEach(row => {
+                csv += row.map(cell => {
+                    // Escape quotes and wrap in quotes if contains comma
+                    const escaped = cell.replace(/"/g, '""');
+                    return cell.includes(',') || cell.includes('"') || cell.includes('\n') 
+                        ? `"${escaped}"` 
+                        : cell;
+                }).join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const fileName = selectedFile 
+                ? selectedFile.name.replace('.pdf', '') + '.csv'
+                : 'data.csv';
+            downloadFile(blob, fileName);
+            showStatus('✅ CSV file downloaded! Opens directly in Excel.', 'success');
+        }
+        
+        function downloadXLS() {
+            const maxCols = getMaxColumns();
+            
+            let html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office"
+                      xmlns:x="urn:schemas-microsoft-com:office:excel"
+                      xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8">
+                    <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+                    <x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                    </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+                    <style>
+                        td { border: 1px solid #ccc; padding: 5px; }
+                        th { background: #2d8659; color: white; padding: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <table>
+                        <tr>
+                            ${Array.from({length: maxCols}, (_, i) => `<th>Column ${i + 1}</th>`).join('')}
+                        </tr>
+                        ${extractedData.map(row => `
+                            <tr>
+                                ${Array.from({length: maxCols}, (_, i) => `<td>${row[i] || ''}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </table>
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const fileName = selectedFile 
+                ? selectedFile.name.replace('.pdf', '') + '.xls'
+                : 'data.xls';
+            downloadFile(blob, fileName);
+            showStatus('✅ Excel file downloaded! Open in Microsoft Excel or Google Sheets.', 'success');
+        }
+        
+        function downloadTSV() {
+            const tsv = extractedData.map(row => row.join('\t')).join('\n');
+            const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
+            const fileName = selectedFile 
+                ? selectedFile.name.replace('.pdf', '') + '.tsv'
+                : 'data.tsv';
+            downloadFile(blob, fileName);
+            showStatus('✅ TSV file downloaded!', 'success');
+        }
+        
+        function downloadFile(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 6000);
+            }
+        }
+    </script>
+</body>
+</html>
