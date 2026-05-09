@@ -1,0 +1,9 @@
+# Allow all search engines to crawl the entire website
+User-agent: *
+Allow: /
+
+# Link to your sitemap
+Sitemap: https://pdf-tools-website-lemon.vercel.app/sitemap.xml
+
+# Prevent crawling of verification files (optional)
+Disallow: /google2af6d8dd349a77f6.html
