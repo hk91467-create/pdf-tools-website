@@ -4,71 +4,185 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rotate PDF - Fix Page Orientation Free | PDF Tools Pro</title>
+    <meta name="description" content="Rotate PDF pages online for free. Fix page orientation issues in seconds.">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
         .container { max-width: 800px; margin: 0 auto; }
-        .header { text-align: center; color: white; padding: 30px; }
-        .header h1 { font-size: 2.5em; }
+        .header { text-align: center; color: white; padding: 30px 20px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
         .main-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        .drop-zone { border: 3px dashed #667eea; padding: 50px; text-align: center; cursor: pointer; border-radius: 15px; background: #f8f9ff; margin: 20px 0; }
+        .drop-zone { border: 3px dashed #667eea; border-radius: 15px; padding: 50px 20px; text-align: center; cursor: pointer; background: #f8f9ff; margin-bottom: 20px; transition: all 0.3s; }
         .drop-zone:hover { background: #eef0ff; }
-        button { width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 12px; font-size: 1.1em; cursor: pointer; margin: 10px 0; }
-        button:hover { background: #764ba2; }
-        .rotation-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
-        .status { padding: 15px; border-radius: 10px; text-align: center; margin: 15px 0; display: none; }
+        .drop-zone.dragover { background: #dde0ff; border-color: #764ba2; }
+        .file-info { background: #f0f0f5; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; }
+        .rotation-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .rotation-buttons button { padding: 20px; border: none; border-radius: 12px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: all 0.3s; color: white; }
+        .btn-90 { background: linear-gradient(135deg, #667eea, #764ba2); grid-column: span 1; }
+        .btn-90c { background: linear-gradient(135deg, #14b8a6, #0d9488); grid-column: span 1; }
+        .btn-180 { background: linear-gradient(135deg, #f59e0b, #d97706); grid-column: span 2; }
+        .rotation-buttons button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .status { text-align: center; padding: 15px; margin: 15px 0; border-radius: 10px; display: none; }
         .status.success { background: #d4edda; color: #155724; display: block; }
         .status.error { background: #f8d7da; color: #721c24; display: block; }
-        .back-link { color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; display: inline-block; margin-top: 20px; }
+        .status.processing { background: #fff3cd; color: #856404; display: block; }
+        .back-link { display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>🔄 Rotate PDF</h1><p>Fix page orientation easily</p></div>
+        <div class="header">
+            <h1>🔄 Rotate PDF</h1>
+            <p>Fix page orientation easily - 100% Free</p>
+        </div>
+        
         <div class="main-card">
             <div class="drop-zone" id="dropZone">
-                <div style="font-size: 3em;">📄</div>
-                <h2>Drop PDF here</h2>
-                <p>or click to select</p>
-                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                <div style="font-size: 4em;">📄</div>
+                <h2>Drop your PDF file here</h2>
+                <p>or click to browse</p>
+                <input type="file" id="fileInput" accept=".pdf">
             </div>
-            <div id="controls" style="display: none;">
-                <div class="rotation-buttons">
-                    <button onclick="rotateAndDownload(90)">↻ Rotate 90° Clockwise</button>
-                    <button onclick="rotateAndDownload(-90)">↺ Rotate 90° Counter-Clockwise</button>
-                    <button onclick="rotateAndDownload(180)" style="grid-column: span 2;">↻ Rotate 180°</button>
-                </div>
+            
+            <div id="fileInfo" style="display: none;"></div>
+            
+            <div class="rotation-buttons" id="rotationControls" style="display: none;">
+                <button class="btn-90" onclick="rotatePDF(90)">
+                    ↻ Rotate 90° Clockwise
+                </button>
+                <button class="btn-90c" onclick="rotatePDF(-90)">
+                    ↺ Rotate 90° Counter-clockwise
+                </button>
+                <button class="btn-180" onclick="rotatePDF(180)">
+                    ↻ Rotate 180° (Upside Down)
+                </button>
             </div>
+            
             <div class="status" id="status"></div>
         </div>
-        <a href="/" class="back-link">← Back to All Tools</a>
+        
+        <div style="text-align: center;">
+            <a href="/" class="back-link">← Back to All Tools</a>
+        </div>
     </div>
 
     <script>
         let selectedFile = null;
-        
-        document.getElementById('dropZone').onclick = () => document.getElementById('fileInput').click();
-        document.getElementById('fileInput').onchange = (e) => handleFile(e.target.files[0]);
-        
         const dropZone = document.getElementById('dropZone');
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.background = '#eef0ff'; };
-        dropZone.ondragleave = () => { dropZone.style.background = '#f8f9ff'; };
-        dropZone.ondrop = (e) => { e.preventDefault(); dropZone.style.background = '#f8f9ff'; handleFile(e.dataTransfer.files[0]); };
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const rotationControls = document.getElementById('rotationControls');
+        const status = document.getElementById('status');
+        
+        // Drop zone handlers
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
         
         function handleFile(file) {
             if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
-                showStatus('Please select a valid PDF file.', 'error');
+                showStatus('❌ Please select a valid PDF file.', 'error');
                 return;
             }
+            
             selectedFile = file;
-            document.getElementById('controls').style.display = 'block';
+            
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `
+                <strong>📄 ${file.name}</strong><br>
+                <span style="color: #666;">Size: ${formatSize(file.size)}</span>
+            `;
+            
+            rotationControls.style.display = 'grid';
+            status.style.display = 'none';
         }
         
-        async function rotateAndDownload(angle) {
-            if (!selectedFil...
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        async function rotatePDF(angle) {
+            if (!selectedFile) {
+                showStatus('❌ Please select a PDF file first.', 'error');
+                return;
+            }
+            
+            showStatus('⏳ Rotating PDF... Please wait', 'processing');
+            
+            try {
+                const { PDFDocument } = PDFLib;
+                const fileBytes = await selectedFile.arrayBuffer();
+                const pdf = await PDFDocument.load(fileBytes);
+                const pages = pdf.getPages();
+                
+                // Rotate all pages
+                pages.forEach(page => {
+                    const currentRotation = page.getRotation().angle || 0;
+                    page.setRotation({ angle: currentRotation + angle, type: 0 });
+                });
+                
+                const pdfBytes = await pdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                // Download the rotated PDF
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'rotated-' + selectedFile.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showStatus('✅ PDF rotated and downloaded successfully!', 'success');
+            } catch (error) {
+                console.error('Rotation error:', error);
+                showStatus('❌ Error rotating PDF: ' + error.message, 'error');
+            }
+        }
+        
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
