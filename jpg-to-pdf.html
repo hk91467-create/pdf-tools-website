@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JPG to PDF - Convert Images to PDF Free | PDF Tools Pro</title>
+    <meta name="description" content="Convert JPG images to PDF online for free. Create PDF from multiple images easily.">
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; color: white; padding: 30px 20px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .main-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .drop-zone { border: 3px dashed #667eea; border-radius: 15px; padding: 50px 20px; text-align: center; cursor: pointer; background: #f8f9ff; margin-bottom: 20px; transition: all 0.3s; }
+        .drop-zone:hover { background: #eef0ff; }
+        .drop-zone.dragover { background: #dde0ff; border-color: #764ba2; }
+        .image-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
+        .image-item { position: relative; border: 2px solid #ddd; border-radius: 10px; padding: 10px; text-align: center; }
+        .image-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; }
+        .image-item p { font-size: 0.8em; margin-top: 5px; word-break: break-all; }
+        .remove-img { position: absolute; top: 5px; right: 5px; background: red; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; font-size: 14px; }
+        button { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: 600; cursor: pointer; margin: 10px 0; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102,126,234,0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status { text-align: center; padding: 15px; margin: 15px 0; border-radius: 10px; display: none; }
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.processing { background: #fff3cd; color: #856404; display: block; }
+        .back-link { display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>📷 JPG to PDF</h1><p>Create PDF from your images</p></div>
+        <div class="main-card">
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size: 4em;">🖼️➡️📄</div>
+                <h2>Drop images here</h2>
+                <p>or click to select (JPG, PNG supported)</p>
+                <input type="file" id="fileInput" multiple accept="image/jpeg,image/png">
+            </div>
+            <div class="image-list" id="imageList"></div>
+            <button id="convertBtn" style="display: none;">📄 Create PDF</button>
+            <div class="status" id="status"></div>
+        </div>
+        <a href="/" class="back-link">← Back to All Tools</a>
+    </div>
+
+    <script>
+        let selectedImages = [];
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const imageList = document.getElementById('imageList');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); };
+        fileInput.onchange = (e) => handleFiles(e.target.files);
+        
+        function handleFiles(files) {
+            const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+            selectedImages.push(...imageFiles);
+            renderImageList();
+            convertBtn.style.display = selectedImages.length > 0 ? 'block' : 'none';
+        }
+        
+        function renderImageList() {
+            imageList.innerHTML = selectedImages.map((file, index) => `
+                <div class="image-item">
+                    <button class="remove-img" onclick="removeImage(${index})">×</button>
+                    <img src="${URL.createObjectURL(file)}" alt="${file.name}">
+                    <p>${file.name}</p>
+                </div>
+            `).join('');
+        }
+        
+        window.removeImage = function(index) {
+            selectedImages.splice(index, 1);
+            renderImageList();
+            convertBtn.style.display = selectedImages.length > 0 ? 'block' : 'none';
+        };
+        
+        convertBtn.onclick = async () => {
+            if (selectedImages.length === 0) return;
+            
+            convertBtn.disabled = true;
+            showStatus('Creating PDF...', 'processing');
+            
+            try {
+                const { PDFDocument } = PDFLib;
+                const pdf = await PDFDocument.create();
+                
+                for (const file of selectedImages) {
+                    const imgBytes = await file.arrayBuffer();
+                    let image;
+                    
+                    if (file.type === 'image/jpeg') {
+                        image = await pdf.embedJpg(imgBytes);
+                    } else if (file.type === 'image/png') {
+                        image = await pdf.embedPng(imgBytes);
+                    }
+                    
+                    if (image) {
+                        const page = pdf.addPage([image.width, image.height]);
+                        page.drawImage(image, {
+                            x: 0,
+                            y: 0,
+                            width: image.width,
+                            height: image.height,
+                        });
+                    }
+                }
+                
+                const pdfBytes = await pdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'images-to-pdf.pdf';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showStatus('✅ PDF created successfully!', 'success');
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+            } finally {
+                convertBtn.disabled = false;
+            }
+        };
+        
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+            setTimeout(() => { status.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>
