@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Split PDF - Extract Pages Free | PDF Tools Pro</title>
+    <meta name="description" content="Split PDF files online for free. Extract specific pages from your PDF document.">
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; color: white; padding: 30px 20px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .main-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .drop-zone { border: 3px dashed #667eea; border-radius: 15px; padding: 50px 20px; text-align: center; cursor: pointer; background: #f8f9ff; margin-bottom: 20px; }
+        .drop-zone:hover { background: #eef0ff; }
+        .drop-zone.dragover { background: #dde0ff; border-color: #764ba2; }
+        input[type="file"] { display: none; }
+        button { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 1.1em; cursor: pointer; margin: 10px 0; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102,126,234,0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .input-group { margin: 15px 0; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px; font-size: 1em; }
+        .input-group input:focus { border-color: #667eea; outline: none; }
+        .hint { color: #666; font-size: 0.9em; margin-top: 5px; }
+        .status { text-align: center; padding: 15px; margin: 15px 0; border-radius: 10px; display: none; }
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.processing { background: #fff3cd; color: #856404; display: block; }
+        .back-link { display: inline-block; color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>✂️ Split PDF</h1><p>Extract specific pages from your PDF</p></div>
+        <div class="main-card">
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size: 3em;">📄</div>
+                <h2>Drop PDF file here</h2>
+                <p>or click to select</p>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+            
+            <div class="input-group" id="pageInput" style="display: none;">
+                <label>Enter page numbers to extract:</label>
+                <input type="text" id="pages" placeholder="Example: 1,3,5-7,10">
+                <p class="hint">Use commas, ranges (e.g., 5-7), or single pages</p>
+            </div>
+            
+            <button id="splitBtn" style="display: none;">✂️ Split & Download</button>
+            <div class="status" id="status"></div>
+        </div>
+        <a href="/" class="back-link">← Back to All Tools</a>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const splitBtn = document.getElementById('splitBtn');
+        const status = document.getElementById('status');
+        
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); };
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+        
+        function handleFile(file) {
+            if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+                showStatus('Please select a valid PDF file.', 'error');
+                return;
+            }
+            selectedFile = file;
+            document.getElementById('pageInput').style.display = 'block';
+            splitBtn.style.display = 'block';
+        }
+        
+        function parsePageNumbers(input, maxPages) {
+            const pages = new Set();
+            const parts = input.split(',');
+            
+            for (let part of parts) {
+                part = part.trim();
+                if (part.includes('-')) {
+                    const [start, end] = part.split('-').map(Number);
+                    for (let i = Math.max(1, start); i <= Math.min(end, maxPages); i++) {
+                        pages.add(i);
+                    }
+                } else if (part) {
+                    const num = Number(part);
+                    if (num >= 1 && num <= maxPages) pages.add(num);
+                }
+            }
+            
+            return Array.from(pages).sort((a, b) => a - b);
+        }
+        
+        splitBtn.onclick = async () => {
+            if (!selectedFile) return;
+            
+            const pagesInput = document.getElementById('pages').value.trim();
+            if (!pagesInput) {
+                showStatus('Please enter page numbers to extract.', 'error');
+                return;
+            }
+            
+            splitBtn.disabled = true;
+            showStatus('Splitting PDF...', 'processing');
+            
+            try {
+                const { PDFDocument } = PDFLib;
+                const fileBytes = await selectedFile.arrayBuffer();
+                const pdf = await PDFDocument.load(fileBytes);
+                const totalPages = pdf.getPageCount();
+                const pagesToExtract = parsePageNumbers(pagesInput, totalPages);
+                
+                if (pagesToExtract.length === 0) {
+                    showStatus('No valid pages found. Please check your input.', 'error');
+                    splitBtn.disabled = false;
+                    return;
+                }
+                
+                const newPdf = await PDFDocument.create();
+                for (const pageNum of pagesToExtract) {
+                    const [page] = await newPdf.copyPages(pdf, [pageNum - 1]);
+                    newPdf.addPage(page);
+                }
+                
+                const pdfBytes = await newPdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `split-pages-${pagesToExtract.join('-')}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showStatus(`✅ Extracted ${pagesToExtract.length} page(s) successfully!`, 'success');
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+            } finally {
+                splitBtn.disabled = false;
+            }
+        };
+        
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+            setTimeout(() => { status.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>
