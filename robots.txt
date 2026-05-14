@@ -1,3 +1,9 @@
+User-agent: *
+Disallow: /about.html
+Disallow: /contact.html
+Disallow: /privacy-policy.html
+Disallow: /terms.html
+Disallow: /google2af6d8dd349a77f6.html
 # Allow all search engines to crawl the entire website
 User-agent: *
 Allow: /
